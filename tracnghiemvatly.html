@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trắc Nghiệm Vật Lý</title>
+    <!-- Tải Tailwind CSS để tạo kiểu dáng hiện đại và tươi sáng -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Sử dụng font Inter cho thẩm mỹ hiện đại */
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f7f3e8; /* Màu nền nhẹ nhàng, ấm áp */
+        }
+        /* Style cho khung nổi bật (Raised/Cartoon Effect) */
+        .raised-box {
+            box-shadow: 0 8px 0 0 #4f46e5, 0 8px 0 2px #1e293b; /* Shadow 3D */
+            transition: transform 0.1s ease-in-out, box-shadow 0.1s ease-in-out;
+            transform: translateY(-4px); /* Nhấc nhẹ lên */
+        }
+        .raised-box:active {
+            box-shadow: 0 4px 0 0 #4f46e5, 0 4px 0 2px #1e293b;
+            transform: translateY(0);
+        }
+        /* Style cho đáp án - Kiểu truyền thống và dễ nhìn */
+        .option-item {
+            cursor: pointer;
+            transition: all 0.2s;
+            border-left: 5px solid transparent;
+        }
+        /* Hiệu ứng rê chuột */
+        .option-item:hover:not(.correct):not(.incorrect) {
+            background-color: #fce7f3; /* Màu hồng nhạt khi rê chuột */
+            border-left: 5px solid #ec4899; /* Viền trái màu nổi bật */
+            transform: translateX(4px);
+        }
+        /* Cố định chiều rộng chính 2/3 màn hình */
+        .main-container {
+            max-width: 66.666667%; /* 2/3 của 100% */
+            min-width: 400px; /* Đảm bảo hiển thị tốt trên di động */
+        }
+        /* CSS cho gạch chân (để mô phỏng yêu cầu "ABCD có gạch dưới") */
+        .underlined-letter {
+            text-decoration: underline;
+            font-weight: 600;
+        }
+    </style>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'primary': '#4f46e5', // Indigo 600
+                        'correct': '#10b981', // Emerald 500
+                        'incorrect': '#ef4444', // Red 500
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="p-4 flex flex-col items-center min-h-screen">
+
+    <!-- Container giới hạn 2/3 chiều dài màn hình và căn giữa -->
+    <div class="main-container bg-white rounded-xl p-6 md:p-10 shadow-2xl space-y-8">
+
+        <!-- TIÊU ĐỀ - Nổi bật -->
+        <header class="text-center">
+            <div class="raised-box inline-block bg-yellow-400 p-4 rounded-xl border-4 border-gray-900">
+                <h1 class="text-3xl md:text-5xl font-extrabold text-gray-900 tracking-tight">
+                    Trắc nghiệm vật lý
+                </h1>
+            </div>
+            <p class="text-lg text-gray-600 mt-3 font-semibold">Sóng ngang - Sóng dọc - Sự truyền năng lượng của sóng</p>
+        </header>
+
+        <!-- KHU VỰC ĐIỀU KHIỂN -->
+        <div class="flex flex-col md:flex-row justify-end items-center space-y-4 md:space-y-0 p-4 bg-blue-100 rounded-lg border-2 border-blue-400">
+            <!-- Nút Sáo trộn -->
+            <button id="shuffleBtn" class="raised-box bg-purple-500 text-white font-bold py-2 px-4 rounded-lg text-sm md:text-base border-b-4 border-purple-700 hover:bg-purple-600 w-full md:w-auto" onclick="shuffleQuiz()">
+                <span class="text-sm">Sáo trộn câu hỏi và câu trả lời</span>
+            </button>
+        </div>
+
+        <!-- KHU VỰC HIỂN THỊ CÂU HỎI -->
+        <div id="quizContainer" class="space-y-8">
+            <!-- Questions will be rendered here -->
+            <div class="text-center text-gray-500 mt-10">
+                Nhấn "Bắt đầu" bên cạnh từng câu hỏi để bắt đầu tính giờ!
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        const DEFAULT_TIME = 60; // 60 giây cho mỗi câu
+        
+        // Dữ liệu câu hỏi được trích xuất từ file
+        const rawQuestions = [
+            { text: 'Sóng dọc là', options: ['sóng truyền dọc theo một sợi dây.', 'sóng trong đó phương dao động (của các phần tử của môi trường) trùng với phương truyền.', 'sóng truyền theo trục tung của trục tọa độ.', 'sóng trong đó các phần tử của môi trường dao động theo phương vuông góc với phương truyền sóng.'], correct: 1 },
+            { text: 'Sóng dọc truyền được trong các môi trường', options: ['rắn và lỏng.', 'lỏng và khí.', 'rắn, lỏng và khí.', 'rắn, lỏng, khí và chân không.'], correct: 2 },
+            { text: 'Tốc độ truyền sóng âm không phụ thuộc vào', options: ['không gian rộng hẹp của môi trường.', 'nhiệt độ của môi trường.', 'khối lượng riêng của môi trường.', 'tính đàn hồi của môi trường.'], correct: 0 },
+            { text: 'Một sóng âm truyền trong không khí với tốc độ 340 m/s và bước sóng 34 cm. Tần số của sóng này là', options: ['100 Hz', '1000 Hz', '200 Hz', '2000 Hz'], correct: 1 },
+            { text: 'Sóng cơ không truyền được trong:', options: ['Chân không', 'Không khí', 'Nước', 'Kim loại'], correct: 0 },
+            { text: 'Phát biểu nào sau đây về sóng không đúng?', options: ['Sóng là quá trình lan truyền dao động trong một môi trường liên tục.', 'Sóng ngang là sóng có các phần tử dao động theo phương ngang.', 'Sóng dọc là sóng có các phần tử dao động theo phương trùng với phương truyền sóng.', 'Bước sóng là quãng đường sóng truyền đi được trong một chu kì.'], correct: 1 },
+            { text: 'chọn câu đúng.', options: ['Sóng dọc là sóng truyền dọc theo một sợi dây.', 'Sóng dọc là sóng truyền theo phương thẳng đứng, còn sóng ngang là sóng truyền theo phương nằm ngang.', 'Sóng dọc là sóng trong đó phương dao động (của các phần tử của môi trường) trùng với phương truyền sóng.', 'Sóng dọc là sóng truyền theo trục tung, còn sóng ngang là sóng truyền theo trục hoành.'], correct: 2 },
+            { text: 'Khi nói về sóng, phát biểu nào dưới đây là sai?', options: ['Sóng ngang là sóng mà phương dao động của các phần tử vật chất nơi sóng truyền qua vuông góc với phương truyền sóng.', 'Khi sóng truyền đi, các phần tử vật chất nơi sóng truyền qua cùng truyền đi theo sóng.', 'Sóng cơ không truyền được trong chân không.', 'Sóng dọc là sóng mà phương dao động của các phần tử vật chất nơi sóng truyền qua trùng với phương truyền sóng.'], correct: 1 },
+            { text: 'Khi nói về sóng phát biểu nào sau đây là sai?', options: ['Quá trình truyền sóng cơ là quá trình truyền năng lượng.', 'Sóng cơ lan truyền trên mặt nước là sóng ngang.', 'Sóng âm truyền trong không khí là sóng dọc.', 'Sóng cơ truyền được trong tất cả các môi trường rắn, lỏng, khí và chân không.'], correct: 3 },
+            { text: 'Phát biểu nào sau đây là sai khi nói về về quá trình truyền sóng', options: ['Quá trình truyền sóng là quá trình truyền dao động trong môi trường đàn hồi.', 'Quá trình truyền sóng là quá trình truyền năng lượng.', 'Quá trình truyền sóng là quá trình truyền pha dao động.', 'Quá trình truyền sóng là quá trình truyền các phần tử vật chất.'], correct: 3 },
+        ];
+        
+        const LETTER_OPTIONS = ['A', 'B', 'C', 'D'];
+        let questions = []; // Mảng chứa các đối tượng câu hỏi với ID, time, intervalId và isRunning
+        let answeredQuestions = new Set(); // ID các câu đã trả lời/hết giờ
+        const quizContainer = document.getElementById('quizContainer');
+
+        // Hàm khởi tạo và gán ID, time, intervalId
+        function initializeQuestions(sourceArray) {
+            return sourceArray.map((q, index) => ({
+                ...q,
+                id: index + 1,
+                time: DEFAULT_TIME,
+                intervalId: null,
+                isRunning: false,
+                isAnswered: false,
+            }));
+        }
+
+        questions = initializeQuestions(rawQuestions);
+
+        // Hàm xáo trộn mảng (Fisher-Yates)
+        function shuffleArray(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+        }
+
+        // Hàm xáo trộn câu hỏi và đáp án
+        function shuffleQuiz() {
+            // Dừng tất cả các timer đang chạy trước khi xáo trộn
+            questions.forEach(q => q.intervalId && clearInterval(q.intervalId));
+
+            // Xáo trộn thứ tự câu hỏi
+            shuffleArray(questions);
+            
+            // Xáo trộn thứ tự các đáp án trong từng câu hỏi
+            questions.forEach(q => {
+                const originalCorrectOption = q.options[q.correct];
+                const newOptions = [...q.options];
+                
+                shuffleArray(newOptions);
+                
+                // Cập nhật index đáp án đúng sau khi xáo trộn
+                const newCorrectIndex = newOptions.findIndex(opt => opt === originalCorrectOption);
+                
+                q.options = newOptions;
+                q.correct = newCorrectIndex;
+            });
+
+            // Gán lại ID theo thứ tự tăng dần 1-10 và reset trạng thái
+            questions = questions.map((q, index) => ({
+                ...q,
+                id: index + 1,
+                time: DEFAULT_TIME,
+                intervalId: null,
+                isRunning: false,
+                isAnswered: false,
+            }));
+
+            answeredQuestions = new Set(); // Reset trạng thái đã trả lời
+            renderQuiz();
+            showMessage("Đã sáo trộn câu hỏi và đáp án thành công! Nhấn Bắt đầu cho từng câu.", "blue");
+        }
+
+        // Hàm hiển thị thông báo thay thế cho alert/confirm
+        function showMessage(text, color) {
+            let messageBox = document.getElementById('messageBox');
+            if (!messageBox) {
+                messageBox = document.createElement('div');
+                messageBox.id = 'messageBox';
+                messageBox.className = 'fixed top-4 left-1/2 transform -translate-x-1/2 p-4 rounded-lg shadow-xl z-50 transition-opacity duration-300 font-semibold opacity-0';
+                document.body.appendChild(messageBox);
+            }
+            
+            let bgColor;
+            if (color === 'green') { bgColor = 'bg-green-500'; }
+            else if (color === 'red') { bgColor = 'bg-red-500'; }
+            else if (color === 'blue') { bgColor = 'bg-blue-500'; }
+            else { bgColor = 'bg-gray-700'; }
+
+            messageBox.className = `fixed top-4 left-1/2 transform -translate-x-1/2 p-4 rounded-lg shadow-xl z-50 transition-opacity duration-300 font-semibold text-white ${bgColor}`;
+            messageBox.innerHTML = text;
+            messageBox.style.opacity = '1';
+
+            setTimeout(() => {
+                messageBox.style.opacity = '0';
+            }, 3000);
+        }
+
+        // Hàm xử lý khi một câu hỏi hết giờ
+        function handleQuestionTimeUp(qId) {
+            const questionIndex = questions.findIndex(q => q.id === qId);
+            const q = questions[questionIndex];
+            
+            // Dọn dẹp interval
+            clearInterval(q.intervalId);
+            q.intervalId = null;
+            q.isRunning = false;
+            q.isAnswered = true; // Coi như đã hoàn thành
+            
+            // Vô hiệu hóa đáp án
+            answeredQuestions.add(qId);
+            
+            const questionElement = document.getElementById(`q-${qId}`);
+            const correctOptionIndex = q.correct;
+            const correctOptionText = q.options[correctOptionIndex]; // Lấy nội dung đáp án đúng
+            const options = questionElement.querySelectorAll('.option-item');
+            const feedbackDiv = document.getElementById(`feedback-${qId}`);
+            const timerBtn = document.getElementById(`timerBtn-${qId}`);
+
+            // Vô hiệu hóa click
+            options.forEach(opt => opt.onclick = null);
+            if (timerBtn) {
+                timerBtn.textContent = 'Đã hết giờ';
+                timerBtn.disabled = true;
+                timerBtn.classList.remove('bg-blue-500', 'hover:bg-blue-600');
+                timerBtn.classList.add('bg-gray-400', 'opacity-50');
+            }
+
+            // Tô xanh câu trả lời đúng
+            const correctOptionEl = document.getElementById(`q-${qId}-opt-${correctOptionIndex}`);
+            if (correctOptionEl) {
+                // Dùng class 'correct' để tránh hover effect và highlight
+                correctOptionEl.classList.add('bg-correct', 'bg-opacity-50', 'border-correct', 'correct'); 
+            }
+            
+            // Cập nhật phản hồi (SỬA LỖI: Dùng backticks ` ` để xử lý template literal)
+            questionElement.classList.add('bg-yellow-100', 'border-yellow-500');
+            feedbackDiv.className = 'mt-2 text-sm font-bold text-gray-700 p-2 rounded-lg bg-yellow-200 border-2 border-yellow-500';
+            feedbackDiv.innerHTML = `Đã hết giờ. Câu trả lời đúng là: <span class="font-extrabold text-correct">${LETTER_OPTIONS[correctOptionIndex]}. ${correctOptionText}</span>`;
+        }
+
+        // Hàm bắt đầu logic timer
+        function startTimerLogic(qId) {
+            const questionIndex = questions.findIndex(q => q.id === qId);
+            const q = questions[questionIndex];
+
+            if (q.intervalId) return;
+
+            q.isRunning = true; 
+            
+            // Cập nhật nút bấm
+            const timerBtn = document.getElementById(`timerBtn-${qId}`);
+            if (timerBtn) {
+                timerBtn.textContent = 'Đang chạy...';
+                timerBtn.disabled = true;
+                timerBtn.classList.add('opacity-50');
+            }
+            
+            // Cho phép chọn đáp án (được quản lý bởi isRunning = true)
+
+            q.intervalId = setInterval(() => {
+                q.time--;
+                const timerEl = document.getElementById(`timer-${qId}`);
+                
+                if (timerEl) {
+                    timerEl.textContent = q.time;
+                    if (q.time <= 10) {
+                        timerEl.classList.add('animate-pulse', 'text-red-700');
+                    } else {
+                        timerEl.classList.remove('animate-pulse', 'text-red-700');
+                    }
+                }
+
+                if (q.time <= 0) {
+                    handleQuestionTimeUp(qId);
+                }
+            }, 1000);
+        }
+
+        // Hàm xử lý nút Bắt đầu cho từng câu hỏi
+        function toggleQuestionTimer(qId, buttonElement) {
+            const questionIndex = questions.findIndex(q => q.id === qId);
+            const q = questions[questionIndex];
+
+            if (q.isAnswered) {
+                showMessage(`Câu ${qId} đã hoàn thành.`, 'red');
+                return;
+            }
+
+            // Nếu chưa chạy, thì bắt đầu
+            if (!q.isRunning) {
+                startTimerLogic(qId);
+                showMessage(`Đã bắt đầu giờ cho Câu ${qId}.`, 'green');
+            }
+        }
+
+        // Hàm xử lý khi chọn đáp án
+        function handleAnswer(questionIndex, selectedOptionIndex) {
+            const qId = questions[questionIndex].id;
+            const q = questions[questionIndex];
+
+            if (!q.isRunning) {
+                showMessage("Vui lòng nhấn 'Bắt đầu' cho câu hỏi này trước!", "red");
+                return; 
+            }
+            if (q.isAnswered) return; // Đã trả lời
+
+            // Dừng đồng hồ cho câu hỏi này
+            clearInterval(q.intervalId);
+            q.intervalId = null;
+            q.isRunning = false;
+            q.isAnswered = true;
+            answeredQuestions.add(qId);
+            
+            const questionElement = document.getElementById(`q-${qId}`);
+            const correctOptionIndex = q.correct;
+            const correctOptionText = q.options[correctOptionIndex]; // Lấy nội dung đáp án đúng
+            const options = questionElement.querySelectorAll('.option-item');
+            const feedbackDiv = document.getElementById(`feedback-${qId}`);
+            const timerBtn = document.getElementById(`timerBtn-${qId}`);
+
+            // Vô hiệu hóa click và nút Bắt đầu
+            options.forEach(opt => opt.onclick = null);
+            if (timerBtn) {
+                 timerBtn.textContent = 'Hoàn thành';
+                 timerBtn.disabled = true;
+                 timerBtn.classList.remove('bg-blue-500', 'hover:bg-blue-600');
+                 timerBtn.classList.add('bg-gray-400', 'opacity-50');
+            }
+
+            if (selectedOptionIndex === correctOptionIndex) {
+                // TRẢ LỜI ĐÚNG
+                questionElement.classList.add('bg-correct', 'bg-opacity-10', 'border-correct');
+                options[selectedOptionIndex].classList.add('bg-correct', 'bg-opacity-50', 'border-correct', 'correct');
+                feedbackDiv.className = 'mt-2 text-sm font-bold text-correct p-2 rounded-lg bg-correct bg-opacity-10';
+                feedbackDiv.innerHTML = 'Đã trả lời đúng!';
+                showMessage(`Câu ${qId}: Tuyệt vời, trả lời đúng!`, "green");
+            } else {
+                // TRẢ LỜI SAI
+                const selectedOptionEl = options[selectedOptionIndex];
+                const correctOptionEl = options[correctOptionIndex];
+                
+                // Tô đỏ câu trả lời sai
+                selectedOptionEl.classList.add('bg-incorrect', 'bg-opacity-50', 'border-incorrect', 'incorrect');
+                
+                // Tô xanh câu trả lời đúng
+                correctOptionEl.classList.add('bg-correct', 'bg-opacity-50', 'border-correct', 'correct');
+
+                feedbackDiv.className = 'mt-2 text-sm font-bold text-incorrect p-2 rounded-lg border-2 border-incorrect bg-incorrect bg-opacity-10';
+                // SỬA LỖI: Dùng backticks ` ` để xử lý template literal
+                feedbackDiv.innerHTML = `Đã trả lời sai! Câu trả lời đúng là: <span class="font-extrabold text-correct">${LETTER_OPTIONS[correctOptionIndex]}. ${correctOptionText}</span>`;
+                showMessage(`Câu ${qId}: Rất tiếc, trả lời sai.`, "red");
+            }
+        }
+
+        // Hàm tạo HTML cho một câu hỏi
+        function createQuestionHTML(q, index) {
+            const baseOptionClasses = "option-item p-3 mt-2 rounded-lg border border-gray-200 text-gray-800 text-sm md:text-base transition-all duration-200";
+            
+            const optionsHTML = q.options.map((optionText, optIndex) => `
+                <div 
+                    class="${baseOptionClasses}" 
+                    onclick="handleAnswer(${index}, ${optIndex})"
+                    id="q-${q.id}-opt-${optIndex}"
+                >
+                    <span class="underlined-letter text-blue-700">${LETTER_OPTIONS[optIndex]}</span>. ${optionText}
+                </div>
+            `).join('');
+
+            // Điều chỉnh hiển thị timer/nút Bắt đầu
+            return `
+                <div id="q-${q.id}" class="question-item p-4 rounded-xl border-4 border-gray-200 bg-white transition-all duration-300">
+                    <h3 class="text-lg font-bold text-gray-900 mb-4 flex justify-between items-start">
+                        <span>Câu ${q.id}. ${q.text}</span>
+                        <!-- Bảng đếm thời gian riêng -->
+                        <div class="ml-4 text-center p-2 rounded-lg border-2 border-gray-900 bg-red-100 min-w-[120px] flex-shrink-0">
+                            <span class="block text-xs font-semibold mb-1 text-gray-600">Thời gian:</span>
+                            <div class="flex items-center justify-center space-x-2">
+                                <span id="timer-${q.id}" class="text-red-600 font-extrabold text-lg">${q.time}</span> 
+                                <span class="text-red-600 font-extrabold text-lg">s</span>
+                            </div>
+                            <button id="timerBtn-${q.id}" 
+                                class="mt-2 bg-blue-500 hover:bg-blue-600 text-white text-xs font-bold py-1 px-2 rounded-md transition-colors" 
+                                onclick="toggleQuestionTimer(${q.id}, this)">
+                                Bắt đầu
+                            </button>
+                        </div>
+                    </h3>
+                    
+                    <div class="options-group space-y-2">
+                        ${optionsHTML}
+                    </div>
+                    
+                    <!-- Khung phản hồi bên dưới -->
+                    <div id="feedback-${q.id}" class="mt-2 text-sm"></div>
+                </div>
+            `;
+        }
+
+        // Hàm hiển thị toàn bộ bài quiz
+        function renderQuiz() {
+            quizContainer.innerHTML = questions.map(createQuestionHTML).join('');
+        }
+
+        // Khởi tạo giao diện khi tải trang
+        window.onload = function() {
+            renderQuiz();
+            showMessage("Sẵn sàng! Nhấn 'Bắt đầu' bên cạnh từng câu hỏi để làm bài.", "blue");
+        };
+
+        // Bật thư viện font Inter
+        const link = document.createElement('link');
+        link.href = 'https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap';
+        link.rel = 'stylesheet';
+        document.head.appendChild(link);
+
+    </script>
+</body>
+</html>
